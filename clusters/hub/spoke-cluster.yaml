@@ -1,0 +1,43 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: spoke-cluster
+  namespace: flux-system
+spec:
+  releaseName: spoke-cluster
+  interval: 1h
+  chartRef:
+    kind: ExternalArtifact
+    name: spoke-cluster-chart
+  # The following is the whole reason for this intermediate HelmRelease.
+  # We need to pass the hub cluster's CA certificate to the spoke cluster's
+  # Kustomization so that the spoke cluster can validate tokens issued by
+  # the hub cluster's API server.
+  #
+  # Note: For production, passing this CA should not be needed as the OIDC
+  # discovery documents should not be served directly by the Kubernetes
+  # API server. Instead, they should be served somewhere else, see
+  # comment in the hub.yaml file for more details.
+  values:
+    spokeName: spoke-cluster
+  valuesFrom:
+    - kind: ConfigMap
+      name: kube-root-ca.crt
+      valuesKey: ca.crt
+      targetPath: hubCA
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: spoke-cluster-sync
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: spoke-cluster
+  interval: 1h
+  retryInterval: 1m
+  path: clusters/spoke
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system

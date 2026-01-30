@@ -1,0 +1,71 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: {{ .Values.spokeName }}
+  namespace: flux-system
+spec:
+  dependsOn:
+    - name: cluster-api
+    - name: public-oidc-discovery
+  interval: 1h
+  retryInterval: 1m
+  path: components/{{ .Values.spokeName }}
+  prune: true
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  patches:
+    # Patch the ClusterClass (to patch the KubeadmControlPlaneTemplate) to include
+    # the authentication configuration for the spoke cluster to authenticate
+    # ServiceAccount tokens issued by the hub cluster. The issuer URL has to match
+    # the URL configured in the file hub.yaml. The audience must match the one
+    # configured in the ConfigMap converted by ResourceSet from the kubeconfig Secret.
+    - target:
+        kind: ClusterClass
+      patch: |-
+        - op: add
+          path: /spec/patches/-
+          value:
+            description: Adds an authentication configuration for the hub cluster to the kube-apiserver.
+            name: authenticationConfig
+            definitions:
+              - selector:
+                  apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+                  kind: KubeadmControlPlaneTemplate
+                  matchResources:
+                    controlPlane: true
+                jsonPatches:
+                  - op: add
+                    path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraArgs/-
+                    value:
+                      name: authentication-config
+                      value: /etc/kubernetes/authn/authentication-config.yaml
+                  - op: add
+                    path: /spec/template/spec/kubeadmConfigSpec/clusterConfiguration/apiServer/extraVolumes/-
+                    value:
+                      name: authn-config
+                      hostPath: /etc/kubernetes/authn
+                      mountPath: /etc/kubernetes/authn
+                      readOnly: true
+                      pathType: DirectoryOrCreate
+                  - op: add
+                    path: /spec/template/spec/kubeadmConfigSpec/files/-
+                    value:
+                      path: /etc/kubernetes/authn/authentication-config.yaml
+                      owner: "root:root"
+                      permissions: "0644"
+                      content: |
+                        apiVersion: apiserver.config.k8s.io/v1
+                        kind: AuthenticationConfiguration
+                        jwt:
+                          - claimMappings:
+                              username:
+                                prefix: ""
+                                claim: sub
+                            issuer:
+                              url: https://hub-control-plane:6443
+                              audiences:
+                                - {{ .Values.spokeName }}
+                              certificateAuthority: |-
+{{ .Values.hubCA | indent 32 }}

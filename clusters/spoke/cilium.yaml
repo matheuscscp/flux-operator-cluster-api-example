@@ -1,0 +1,48 @@
+apiVersion: fluxcd.controlplane.io/v1
+kind: ResourceSet
+metadata:
+  name: cilium
+  namespace: spoke-cluster
+spec:
+  dependsOn:
+    - apiVersion: v1
+      kind: Secret
+      name: spoke-kubeconfig
+      namespace: spoke-cluster
+  resources:
+    - apiVersion: source.toolkit.fluxcd.io/v1
+      kind: HelmRepository
+      metadata:
+        name: cilium
+        namespace: spoke-cluster
+      spec:
+        interval: 1h
+        url: https://helm.cilium.io
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: cilium
+        namespace: spoke-cluster
+      spec:
+        kubeConfig:
+          secretRef:
+            name: spoke-kubeconfig
+        interval: 1h
+        chart:
+          spec:
+            chart: cilium
+            version: 1.18.6
+            sourceRef:
+              kind: HelmRepository
+              name: cilium
+        releaseName: cilium
+        targetNamespace: kube-system
+        storageNamespace: kube-system
+        install:
+          strategy:
+            name: RetryOnFailure
+            retryInterval: 30s
+        upgrade:
+          strategy:
+            name: RetryOnFailure
+            retryInterval: 30s

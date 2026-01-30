@@ -1,0 +1,6 @@
+nameReference:
+- kind: OCIRepository
+  version: v1
+  fieldSpecs:
+  - path: spec/chartRef/name
+    kind: HelmRelease

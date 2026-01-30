@@ -1,0 +1,42 @@
+apiVersion: fluxcd.controlplane.io/v1
+kind: FluxInstance
+metadata:
+  name: flux
+  namespace: flux-system
+spec:
+  distribution:
+    version: 2.7.x
+    registry: ghcr.io/fluxcd
+    artifact: oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests:latest
+  components:
+    - source-controller
+    - kustomize-controller
+    - helm-controller
+    - notification-controller
+    - source-watcher
+  cluster:
+    type: kubernetes
+    networkPolicy: true
+    domain: cluster.local
+    objectLevelWorkloadIdentity: true
+  sync:
+    kind: GitRepository
+    url: https://github.com/matheuscscp/flux-operator-cluster-api-example.git
+    ref: refs/heads/main
+    path: clusters/hub
+  kustomize:
+    patches:
+      - target:
+          kind: Deployment
+          name: kustomize-controller
+        patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --feature-gates=CancelHealthCheckOnNewRevision=true
+      - target:
+          kind: Deployment
+          name: (kustomize-controller|helm-controller|source-controller)
+        patch: |
+          - op: add
+            path: /spec/template/spec/containers/0/args/-
+            value: --requeue-dependency=5s

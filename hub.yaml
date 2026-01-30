@@ -1,0 +1,31 @@
+apiVersion: kind.x-k8s.io/v1alpha4
+kind: Cluster
+name: hub
+nodes:
+- role: control-plane
+  # This mount is required for the Cluster API Docker infrastructure provider
+  # to function correctly. It allows the control plane node to communicate
+  # with the Docker daemon on the host machine to create and manage Docker
+  # containers that will serve as workload nodes in the spoke cluster.
+  extraMounts:
+    - hostPath: /var/run/docker.sock
+      containerPath: /var/run/docker.sock
+  # This patch is needed to customize the `iss` claim of ServiceAccount tokens and
+  # the `issuer` and `jwks_uri` fields of the cluster's OIDC discovery document.
+  #
+  # Both URLs must be reachable by the spoke cluster from the network.
+  # In this example, hub and spoke will be on the same Docker network,
+  # so the URL is therefore set to the URL of hub cluster inside the
+  # Docker network.
+  #
+  # Note: For production, both URLs should point to some object storage/CDN
+  # (e.g. CloudFlare R2, AWS S3, Google Cloud Storage, Azure Blob Storage)
+  # endpoint hosting the cluster's issuer metadata and JWKS. See docs:
+  # https://fluxcd.io/flux/integrations/cross-cloud/#for-clusters-without-a-built-in-public-issuer-url
+  kubeadmConfigPatches:
+    - |
+      kind: ClusterConfiguration
+      apiServer:
+        extraArgs:
+          service-account-issuer: https://hub-control-plane:6443
+          service-account-jwks-uri: https://hub-control-plane:6443/openid/v1/jwks

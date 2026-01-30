@@ -1,0 +1,33 @@
+apiVersion: source.extensions.fluxcd.io/v1beta1
+kind: ArtifactGenerator
+metadata:
+  name: spoke-cluster-chart
+  namespace: flux-system
+spec:
+  sources:
+    - alias: repo
+      kind: GitRepository
+      name: flux-system
+  artifacts:
+    - name: spoke-cluster-chart
+      originRevision: "@repo"
+      copy:
+        - from: "@repo/charts/spoke-cluster"
+          to: "@artifact/"
+---
+apiVersion: source.extensions.fluxcd.io/v1beta1
+kind: ArtifactGenerator
+metadata:
+  name: tenants-rbac-chart
+  namespace: flux-system
+spec:
+  sources:
+    - alias: repo
+      kind: GitRepository
+      name: flux-system
+  artifacts:
+    - name: tenants-rbac-chart
+      originRevision: "@repo"
+      copy:
+        - from: "@repo/charts/tenants-rbac"
+          to: "@artifact/"

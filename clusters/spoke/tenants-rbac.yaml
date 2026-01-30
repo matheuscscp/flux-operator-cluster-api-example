@@ -1,0 +1,42 @@
+apiVersion: fluxcd.controlplane.io/v1
+kind: ResourceSet
+metadata:
+  name: tenants-rbac
+  namespace: spoke-cluster
+spec:
+  dependsOn:
+    - apiVersion: v1
+      kind: Secret
+      name: spoke-kubeconfig
+      namespace: spoke-cluster
+  resources:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      metadata:
+        name: tenants-rbac
+        namespace: spoke-cluster
+      spec:
+        kubeConfig:
+          secretRef:
+            name: spoke-kubeconfig
+        interval: 1h
+        chartRef:
+          kind: ExternalArtifact
+          name: tenants-rbac-chart
+          namespace: flux-system
+        releaseName: tenants-rbac
+        targetNamespace: tenants-rbac
+        storageNamespace: tenants-rbac
+        install:
+          createNamespace: true
+          strategy:
+            name: RetryOnFailure
+            retryInterval: 30s
+        upgrade:
+          strategy:
+            name: RetryOnFailure
+            retryInterval: 30s
+        values:
+          tenants:
+            - backend
+            - frontend

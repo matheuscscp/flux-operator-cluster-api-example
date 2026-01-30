@@ -1,0 +1,10 @@
+spokeName: "<spoke cluster name>"
+# The CA of the hub cluster API server to inject into the
+# spoke cluster AuthenticationConfiguration. The following
+# is a placeholder and is replaced through a HelmRelease
+# with valuesFrom the built-in kube-root-ca.crt ConfigMap
+# (available in the every namespace of any cluster).
+hubCA: |-
+  -----BEGIN CERTIFICATE-----
+  MII....RP1
+  -----END CERTIFICATE-----
